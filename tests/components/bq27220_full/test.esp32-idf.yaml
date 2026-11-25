@@ -1,0 +1,193 @@
+esphome:
+  name: test-bq27220-full
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [bq27220_full]
+
+logger:
+  level: VERBOSE
+
+i2c:
+  id: i2c_bus
+  scl: GPIO6
+  sda: GPIO7
+
+bq27220_full:
+  - id: gauge
+    i2c_id: i2c_bus
+    update_interval: 1s
+    design_capacity: 250mAh
+    taper_current: 30mA
+    reset_on_boot: true
+    average_power_scale: 10
+  # A second gauge with the defaults
+  - id: gauge_2
+    i2c_id: i2c_bus
+    address: 0x56
+
+sensor:
+  - platform: bq27220_full
+    bq27220_full_id: gauge
+    voltage:
+      name: Voltage
+    current:
+      name: Current
+    average_current:
+      name: Average current
+    standby_current:
+      name: Standby current
+    max_load_current:
+      name: Max load current
+    average_power:
+      name: Average power
+    temperature:
+      name: Temperature
+    internal_temperature:
+      name: Internal temperature
+    battery_level:
+      name: Battery level
+    state_of_health:
+      name: State of health
+    remaining_capacity:
+      name: Remaining capacity
+    full_charge_capacity:
+      name: Full charge capacity
+  # A second entry of the same platform for the same hub
+  - platform: bq27220_full
+    bq27220_full_id: gauge
+    design_capacity:
+      name: Design capacity
+    raw_coulomb_count:
+      name: Raw coulomb count
+    btp_discharge_set:
+      name: BTP discharge set
+    btp_charge_set:
+      name: BTP charge set
+    time_to_empty:
+      name: Time to empty
+    time_to_full:
+      name: Time to full
+    standby_time_to_empty:
+      name: Standby time to empty
+    max_load_time_to_empty:
+      name: Max load time to empty
+    cycle_count:
+      name: Cycle count
+    charge_voltage:
+      name: Charge voltage
+    charge_current:
+      name: Charge current
+    battery_id:
+      name: Battery ID
+  - platform: bq27220_full
+    bq27220_full_id: gauge_2
+    average_power:
+      name: Average power 2
+    voltage:
+      name: Voltage 2
+
+binary_sensor:
+  - platform: bq27220_full
+    bq27220_full_id: gauge
+    snooze:
+      name: SNOOZE
+    bca:
+      name: BCA
+    cca:
+      name: CCA
+    dsg:
+      name: DSG
+    sysdwn:
+      name: SYSDWN
+    tda:
+      name: TDA
+    battpres:
+      name: BATTPRES
+    auth_gd:
+      name: AUTH_GD
+    ocvgd:
+      name: OCVGD
+    tca:
+      name: TCA
+    chginh:
+      name: CHGINH
+    fc:
+      name: FC
+    otd:
+      name: OTD
+    otc:
+      name: OTC
+    sleep:
+      name: SLEEP
+  - platform: bq27220_full
+    bq27220_full_id: gauge
+    ocvfail:
+      name: OCVFAIL
+    ocvcomp:
+      name: OCVCOMP
+    fd:
+      name: FD
+    calmd:
+      name: CALMD
+    edv2:
+      name: EDV2
+    vdq:
+      name: VDQ
+    initcomp:
+      name: INITCOMP
+    smth:
+      name: SMTH
+    btpint:
+      name: BTPINT
+    cfgupdate:
+      name: CFGUPDATE
+    gs_dsg:
+      name: GS_DSG
+    cf:
+      name: CF
+    edv:
+      name: EDV
+    edv1:
+      name: EDV1
+    fccx:
+      name: FCCX
+  - platform: bq27220_full
+    bq27220_full_id: gauge_2
+    fd:
+      name: FD 2
+      on_press:
+        - bq27220_full.reset: gauge_2
+
+text_sensor:
+  - platform: bq27220_full
+    bq27220_full_id: gauge
+    device_number:
+      name: Device number
+    firmware_version:
+      name: Firmware version
+    hardware_version:
+      name: Hardware version
+    security_access:
+      name: Security access
+    active_flags:
+      name: Active flags
+  - platform: bq27220_full
+    bq27220_full_id: gauge_2
+    active_flags:
+      name: Active flags 2
+
+button:
+  - platform: template
+    name: Reset gauge
+    on_press:
+      - bq27220_full.reset: gauge
+      - bq27220_full.reset:
+          id: gauge_2
