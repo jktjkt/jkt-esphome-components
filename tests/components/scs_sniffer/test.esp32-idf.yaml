@@ -1,0 +1,54 @@
+esphome:
+  name: scs-sniffer-test
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [scs_sniffer]
+
+remote_receiver:
+  id: scs_rx
+  pin:
+    number: GPIO2
+    inverted: true
+    mode:
+      input: true
+      pullup: true
+  filter: 2us
+  idle: 2ms
+
+scs_sniffer:
+  id: scs
+  receiver_id: scs_rx
+  enable_pin: GPIO3
+  on_frame:
+    - then:
+        - logger.log:
+            format: "%s (%u bytes, first payload byte %02X)"
+            args:
+              - summary.c_str()
+              - frame.size
+              - frame[1]
+        - if:
+            condition:
+              lambda: return message.kind == esphome::scs_sniffer::Kind::KIND_DOOR_LOCK;
+            then:
+              - logger.log:
+                  format: "door lock by panel %02X, value %02X"
+                  args: [message.src, message.value]
+        - lambda: |-
+            ESP_LOGD("test", "to %02X from %02X, %u characters, last byte %02X", message.dest, message.src,
+                     (unsigned) summary.size(), *(frame.end() - 1));
+    - then:
+        - delay: 10ms
+        - lambda: |-
+            ESP_LOGD("test", "%s, %u bytes from %02X, kind %u", summary.c_str(),
+                     (unsigned) (frame.end() - frame.begin()), message.src, (unsigned) message.kind);
