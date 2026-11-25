@@ -1,0 +1,53 @@
+esphome:
+  name: feature-gate-test
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [feature_gate]
+
+logger:
+
+wifi:
+  ssid: test
+  password: test1234
+
+mqtt:
+  id: mqtt_client
+  broker: 192.0.2.1
+
+uart:
+  - id: uart_dlms
+    tx_pin: 18
+    rx_pin: 19
+    baud_rate: 9600
+  - id: uart_ups
+    tx_pin: 20
+    rx_pin: 21
+    baud_rate: 115200
+
+interval:
+  - id: ups_poll
+    interval: 10s
+    then:
+      - lambda: |-
+          if (id(gate).is_enabled("ups"))
+            id(uart_ups).write_str("?");
+
+feature_gate:
+  id: gate
+  mqtt_id: mqtt_client
+  topic: features_cfg
+  reboot_delay: 5s
+  features:
+    - name: dlms
+      components: [uart_dlms]
+    - name: ups
+      default: true
+      components: [uart_ups, ups_poll]
