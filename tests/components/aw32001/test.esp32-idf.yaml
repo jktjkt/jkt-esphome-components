@@ -1,0 +1,118 @@
+esphome:
+  name: aw32001-test
+  on_boot:
+    then:
+      - aw32001.kick_watchdog: charger
+      - aw32001.kick_watchdog:
+          id: charger2
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [aw32001]
+
+logger:
+  level: VERY_VERBOSE
+
+i2c:
+  - id: i2c_bus
+    sda: GPIO10
+    scl:
+      number: GPIO8
+      ignore_strapping_warning: true
+  - id: i2c_bus2
+    sda: GPIO6
+    scl: GPIO7
+    low_power_mode: true
+
+aw32001:
+  - id: charger
+    i2c_id: i2c_bus
+    update_interval: 30s
+    charge_enabled: true
+    fast_charge_current: 128mA
+    termination_current: 11mA
+    precharge_current: 3mA
+    charge_voltage: 4.2V
+    input_current_limit: 500mA
+    vindpm: 4.52V
+    watchdog: 80s
+  # A second hub with its own publishers, and the 550 mA input limit that also sets REG0C
+  - id: charger2
+    i2c_id: i2c_bus2
+    update_interval: 20s
+    charge_enabled: false
+    input_current_limit: 550mA
+    watchdog: 40s
+
+binary_sensor:
+  - platform: aw32001
+    aw32001_id: charger
+    power_good:
+      name: Power good
+    charging:
+      name: Charging
+    charge_done:
+      name: Charge done
+    power_path_regulation:
+      name: Power path regulation
+    thermal_regulation:
+      name: Thermal regulation
+    watchdog_fault:
+      name: Watchdog fault
+    input_fault:
+      name: Input fault
+    thermal_shutdown:
+      name: Thermal shutdown
+    battery_ovp:
+      name: Battery OVP
+    safety_timer_fault:
+      name: Safety timer fault
+    ntc_hot:
+      name: NTC hot
+    ntc_cold:
+      name: NTC cold
+    fault:
+      name: Fault
+  # A second entry for the same hub adds to the same publisher
+  - platform: aw32001
+    aw32001_id: charger
+    charging:
+      name: Charging again
+  - platform: aw32001
+    aw32001_id: charger2
+    fault:
+      name: Fault 2
+
+text_sensor:
+  - platform: aw32001
+    aw32001_id: charger
+    charge_status:
+      name: Charge status
+    faults:
+      name: Faults
+  - platform: aw32001
+    aw32001_id: charger2
+    faults:
+      name: Faults 2
+
+switch:
+  - platform: aw32001
+    aw32001_id: charger
+    charge_enable:
+      name: Charge enable
+    hiz:
+      name: HIZ
+    ship_mode:
+      name: Ship mode
+  - platform: aw32001
+    aw32001_id: charger2
+    charge_enable:
+      name: Charge enable 2
+      inverted: true
