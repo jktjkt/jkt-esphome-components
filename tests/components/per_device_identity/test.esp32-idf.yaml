@@ -1,0 +1,56 @@
+esphome:
+  name: pdi-test
+  name_add_mac_suffix: true
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [per_device_identity]
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+  partitions:
+    - name: dev_identity
+      type: data
+      subtype: nvs
+      size: 0x6000
+
+logger:
+
+wifi:
+  ssid: MySSID
+  password: password1
+
+mqtt:
+  id: mqtt_client
+  broker: mqtt.example.org
+  port: 8883
+  discovery: false
+  certificate_authority: |
+    -----BEGIN CERTIFICATE-----
+    MIIBszCCAVoCCQDAAAAAAAAAADAKBggqhkjOPQQDAjAfMR0wGwYDVQQDDBRtcXR0
+    -----END CERTIFICATE-----
+  client_certificate: |
+    -----BEGIN CERTIFICATE-----
+    MIIBszCCAVoCCQDAAAAAAAAAADAKBggqhkjOPQQDAjAfMR0wGwYDVQQDDBRtcXR0
+    -----END CERTIFICATE-----
+  client_certificate_key: |
+    -----BEGIN EC PRIVATE KEY-----
+    MHcCAQEEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAoGCCqGSM49
+    -----END EC PRIVATE KEY-----
+
+per_device_identity:
+  id: identity
+  mqtt_id: mqtt_client
+  partition: dev_identity
+  csr_interval: 30s
+  enrol_port: 9884
+  broker_domain: mqtt.example.org
+
+binary_sensor:
+  - platform: template
+    name: Enrolled
+    lambda: return id(identity).is_enrolled();

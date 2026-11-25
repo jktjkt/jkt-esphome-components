@@ -13,3 +13,5 @@ This repo focuses on WM-Bus energy monitoring, building automation, and M5Stack 
 - `im891a_xl`: IMST iM891A-XL WM-Bus radio module driver (UART, WM-Bus receive mode)
 
 - `scs_sniffer`: BTicino SCS intercom/automation bus decoder for a passive tap, on top of `remote_receiver`: frames, commands, door rings
+
+- `per_device_identity`: per-device MQTT identity for one firmware image: device id, broker address and client cert from NVS, enrolment over MQTT
