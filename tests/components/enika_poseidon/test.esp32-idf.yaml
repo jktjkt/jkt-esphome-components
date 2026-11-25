@@ -1,0 +1,92 @@
+esphome:
+  name: enika-poseidon-test
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [enika_poseidon]
+
+# VERBOSE compiles the log line with the frame's bytes
+logger:
+  level: VERBOSE
+
+spi:
+  - id: spi_bus
+    clk_pin: GPIO6
+    mosi_pin: GPIO7
+    miso_pin: GPIO2
+
+sx126x:
+  id: radio
+  cs_pin: GPIO3
+  rst_pin: GPIO4
+  busy_pin: GPIO5
+  dio1_pin: GPIO10
+  hw_version: sx1262
+  rf_switch: true
+  tcxo_voltage: 1_8V
+  tcxo_delay: 5ms
+  rx_start: true
+  frequency: 868.3MHz
+  modulation: FSK
+  bitrate: 38400
+  deviation: 20kHz
+  bandwidth: 117_3kHz
+  preamble_size: 16
+  preamble_detect: 2
+  sync_value: [0xCE, 0x3C]
+  payload_length: 0
+  crc_enable: true
+  crc_size: 2
+  crc_polynomial: 0x8005
+  crc_initial: 0xFFFF
+  crc_inverted: false
+  whitening_enable: false
+
+globals:
+  - id: last_id
+    type: uint32_t
+    initial_value: "0"
+
+enika_poseidon:
+  id: poseidon_rx
+  radio: radio
+  on_packet:
+    # Runs at once: frame and summary are views into the receive buffer
+    - then:
+        - logger.log:
+            format: "%s %.0f dBm, %u bytes, type %02X, %u packets"
+            args:
+              - summary.c_str()
+              - rssi
+              - (unsigned) frame.size()
+              - frame[1]
+              - (unsigned) id(poseidon_rx)->get_packet_count()
+    # Defers: frame and summary are copies
+    - then:
+        - delay: 100ms
+        - lambda: |-
+            ESP_LOGD("test", "%s %.0f dBm %s", summary.c_str(), rssi, format_hex_pretty(frame).c_str());
+  on_state_message:
+    - if:
+        condition:
+          lambda: return message.id == 0x5F1B9A && message.left() && !message.repeat();
+        then:
+          - logger.log: "left button of the fob 0x5F1B9A"
+    - delay: 50ms
+    - lambda: |-
+        id(last_id) = message.id;
+        ESP_LOGD("test", "%06X %.0f dBm b1 %02X ctrl %02X flags %02X type %u cnt3 %u init %d trailer %u",
+                 (unsigned) message.id, rssi, message.byte1, message.ctrl, message.flags, message.msg_type,
+                 message.cnt3, message.init, message.trailer_format);
+        ESP_LOGD("test", "R %d H %d counter %d %u hash %04X byte %02X route %u payload %u", message.right(),
+                 message.long_press(), message.has_counter, message.counter, message.hash, message.trailer_byte,
+                 (unsigned) message.route().size(), (unsigned) message.payload().size());
+        if (!message.payload().empty())
+          ESP_LOGD("test", "payload starts %02X", message.payload()[0]);
