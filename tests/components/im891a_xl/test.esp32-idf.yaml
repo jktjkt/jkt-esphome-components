@@ -1,0 +1,95 @@
+esphome:
+  name: im891a-xl-test
+
+esp32:
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+  level: VERBOSE
+
+external_components:
+  - source:
+      type: local
+      path: ../../../components
+    components: [im891a_xl]
+
+uart:
+  id: imst_uart
+  tx_pin: GPIO20
+  rx_pin: GPIO21
+  baud_rate: 115200
+  rx_buffer_size: 1024
+
+im891a_xl:
+  id: imst
+  uart_id: imst_uart
+  reset_pin: GPIO22
+  link_mode: T
+  recalibration_timeout: 5min
+  health_check_interval: 1min
+  image_parity: EVEN
+  image_detect_restart: false
+  ram_images:
+    - name: sniffer
+      file: poseidon-sniffer-ram.bin
+    - name: sniffer_unverified
+      file: poseidon-sniffer-ram.bin
+      address: 0x20008000
+      verify: false
+  on_packet:
+    - then:
+        - lambda: |-
+            ESP_LOGD("test", "%u", (unsigned) packet.data().size());
+    - then:
+        - logger.log:
+            format: "%s %d dBm %s"
+            args:
+              - packet.meter_id().data()
+              - packet.rssi
+              - LOG_STR_ARG(im891a_xl::packet_info_to_str(packet.packet_info))
+        - lambda: |-
+            ESP_LOGD("test", "%" PRIu32 " %u %u %u %u %u %s %s %u %u %u %u %u",
+                     packet.timestamp, packet.decryption_status, packet.encryption_mode, packet.l_field(),
+                     packet.c_field(), packet.manufacturer_code(), packet.manufacturer().data(),
+                     packet.device_id().data(), packet.version(), packet.device_type(), packet.has_address(),
+                     (unsigned) packet.data().size(), packet.data().empty() ? 0u : packet.data()[0]);
+        - delay: 1s
+        - logger.log:
+            format: "later: %s, %u bytes"
+            args: [packet.meter_id().data(), (unsigned) packet.data().size()]
+  on_image_line:
+    - then:
+        - logger.log:
+            format: "sniffer: %s"
+            args: [line.c_str()]
+    - then:
+        - lambda: |-
+            ESP_LOGD("test", "%s (%u)", line.c_str(), (unsigned) line.size());
+        - delay: 100ms
+        - lambda: |-
+            ESP_LOGD("test", "later: %s (%u)", line.c_str(), (unsigned) line.size());
+
+button:
+  - platform: template
+    name: Run the sniffer
+    on_press:
+      - im891a_xl.load_image: sniffer
+      - im891a_xl.load_image:
+          id: imst
+          image: !lambda 'return id(imst).is_ready() ? "sniffer" : "sniffer_unverified";'
+  - platform: template
+    name: Bootloader
+    on_press:
+      - im891a_xl.start_bootloader:
+          id: imst
+          via_hci: false
+      - im891a_xl.start_bootloader: imst
+  - platform: template
+    name: Back to WM-Bus
+    on_press:
+      - im891a_xl.reset: imst
+      - lambda: |-
+          ESP_LOGD("test", "%u %u %u %" PRIu32, id(imst).is_ready(), id(imst).is_in_bootloader(),
+                   id(imst).is_image_running(), id(imst).get_packet_count());
